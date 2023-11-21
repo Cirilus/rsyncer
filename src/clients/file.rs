@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{Result};
 use std::{fs, io};
 use std::path::{PathBuf};
-use crate::clients::types::Sync;
 use sha2::{Sha256, Digest};
 
 pub struct FileClient {
@@ -14,17 +13,9 @@ pub struct FileConfig{
     pub root: PathBuf,
 }
 
-impl Sync<FileConfig> for FileClient {
+impl FileClient {
     fn new(config: FileConfig) -> Self {
         FileClient{ root: config.root }
-    }
-
-    fn load_file(&self, file_path: String) -> Result<()> {
-        todo!()
-    }
-
-    fn download_file(&self, file_path: String) -> Result<()> {
-        todo!()
     }
 
     fn get_hash_sum(&self, file_path: String) -> Result<String> {

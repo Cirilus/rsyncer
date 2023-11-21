@@ -1,66 +1,70 @@
-use std::io;
-use google_drive::Client;
+use google_drive3 as drive3;
 use crate::clients::types::Sync;
-use io::Result;
+use drive3::hyper;
+use drive3::hyper_rustls::HttpsConnector;
+use google_drive3::{hyper_rustls, oauth2};
+use crate::clients::config::Config;
+use failure::{err_msg, Error};
+use tokio::runtime::Runtime;
 
-pub struct  GoogleClient {
-    client_id: String,
-    client_secret: String,
-    redirect_url: String,
-    token: String,
-    refresh_token: String,
-    client: Client,
-    connected: bool,
+type DriveHub = drive3::api::DriveHub<HttpsConnector<hyper::client::HttpConnector>>;
+
+pub struct DriverClient {
+    pub hub: DriveHub,
 }
 
 
-pub struct GoogleConfig {
-    pub client_id: String,
-    pub client_secret: String,
-    pub redirect_url: String,
-    pub token: String,
-    pub refresh_token: String,
-}
+impl DriverClient {
+    fn new(config: &Config) -> Self {
+        let mut secret: oauth2::ApplicationSecret = oauth2::ApplicationSecret::default();
+        secret.client_secret = config.client_secret?;
 
 
-impl Sync<GoogleConfig> for GoogleClient {
-    fn new(config: GoogleConfig) -> Self {
-        let google_drive = Client::new(
-            String::from(&config.client_id),
-            String::from(&config.client_secret),
-            String::from(&config.redirect_url),
-            String::from(&config.token),
-            String::from(&config.refresh_token),
-        );
+        DriverClient{
+            hub: DriverClient::create_hub(config).unwrap(),
+        }
 
-        let client = GoogleClient{
-            client_id: config.client_id,
-            client_secret: config.client_secret,
-            redirect_url: config.redirect_url,
-            token: config.token,
-            refresh_token: config.refresh_token,
-            client: google_drive,
-            connected: false,
-        };
-
-
-        client
     }
 
-    fn load_file(&self, file_path: String) -> Result<()> {
-        todo!()
+    fn auth(config: &Config) -> Result<
+        oauth2::authenticator::Authenticator<HttpsConnector<hyper::client::HttpConnector>>,
+        Error>{
+        let secret: oauth2::ConsoleApplicationSecret =
+            serde_json::from_str(config.client_secret())?;
+        let secret = secret
+            .installed
+            .ok_or_else(|| err_msg("ConsoleApplicationSecret.installed is None"))?;
+
+        let rt = Runtime::new().unwrap();
+        let auth = rt.block_on(
+            oauth2::InstalledFlowAuthenticator::builder(
+                secret,
+                if config.authorize_using_code() {
+                    oauth2::InstalledFlowReturnMethod::Interactive
+                } else {
+                    oauth2::InstalledFlowReturnMethod::HTTPPortRedirect(8081)
+                },
+            )
+                .persist_tokens_to_disk(config.token_file())
+                .build(),
+        )?;
+        Ok(auth)
     }
 
-    fn download_file(&self, file_path: String) -> Result<()> {
-        todo!()
-    }
+    fn create_hub(config: &Config) -> Result<DriveHub, Error> {
+        let auth = Self::auth(config)?;
 
-    fn get_hash_sum(&self, file_path: String) -> Result<String> {
-        todo!()
-    }
-
-    fn get_list_file(&self, file_path: String) -> Result<Vec<String>> {
-        todo!()
+        Ok(google_drive3::DriveHub::new(
+            hyper::Client::builder().build(
+                hyper_rustls::HttpsConnectorBuilder::new()
+                    .with_native_roots()
+                    .https_or_http()
+                    .enable_http1()
+                    .enable_http2()
+                    .build(),
+            ),
+            auth,
+        ))
     }
 }
 
