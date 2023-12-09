@@ -1,58 +1,57 @@
+use std::path::PathBuf;
 use google_drive3 as drive3;
-use crate::clients::types::Sync;
 use drive3::hyper;
 use drive3::hyper_rustls::HttpsConnector;
 use google_drive3::{hyper_rustls, oauth2};
+use thiserror::Error;
 use crate::clients::config::Config;
-use failure::{err_msg, Error};
-use tokio::runtime::Runtime;
-
+use crate::clients::types::{Syncer, SyncError};
+use serde_json::Error as serde_error;
 type DriveHub = drive3::api::DriveHub<HttpsConnector<hyper::client::HttpConnector>>;
 
 pub struct DriverClient {
     pub hub: DriveHub,
 }
 
+#[derive(Error, Debug)]
+enum DriveError {
+    #[error("Failed convert secret to json")]
+    ErrParseSecretKet(#[from] serde_error),
+
+    #[error("Failed convert secret to json")]
+    ErrAuth(#[from] std::io::Error),
+
+    #[error("Failed to installed secret")]
+    ErrInstalledSecret()
+}
 
 impl DriverClient {
-    fn new(config: &Config) -> Self {
-        let mut secret: oauth2::ApplicationSecret = oauth2::ApplicationSecret::default();
-        secret.client_secret = config.client_secret?;
-
-
+    pub async fn new(config: &Config) -> Self {
         DriverClient{
-            hub: DriverClient::create_hub(config).unwrap(),
+            hub: DriverClient::create_hub(config).await.unwrap(),
         }
 
     }
 
-    fn auth(config: &Config) -> Result<
+    async fn auth(config: &Config) -> Result<
         oauth2::authenticator::Authenticator<HttpsConnector<hyper::client::HttpConnector>>,
-        Error>{
+        DriveError>{
         let secret: oauth2::ConsoleApplicationSecret =
             serde_json::from_str(config.client_secret())?;
         let secret = secret
             .installed
-            .ok_or_else(|| err_msg("ConsoleApplicationSecret.installed is None"))?;
+            .ok_or_else(DriveError::ErrInstalledSecret)?;
 
-        let rt = Runtime::new().unwrap();
-        let auth = rt.block_on(
+        let auth =
             oauth2::InstalledFlowAuthenticator::builder(
                 secret,
-                if config.authorize_using_code() {
-                    oauth2::InstalledFlowReturnMethod::Interactive
-                } else {
-                    oauth2::InstalledFlowReturnMethod::HTTPPortRedirect(8081)
-                },
-            )
-                .persist_tokens_to_disk(config.token_file())
-                .build(),
-        )?;
+                oauth2::InstalledFlowReturnMethod::HTTPRedirect,
+            ).build().await?;
         Ok(auth)
     }
 
-    fn create_hub(config: &Config) -> Result<DriveHub, Error> {
-        let auth = Self::auth(config)?;
+    async fn create_hub(config: &Config) -> Result<DriveHub, DriveError> {
+        let auth = Self::auth(config).await?;
 
         Ok(google_drive3::DriveHub::new(
             hyper::Client::builder().build(
@@ -67,7 +66,39 @@ impl DriverClient {
         ))
     }
 }
+#[async_trait::async_trait]
+impl Syncer for DriverClient {
+    fn upload_file(&self, input_path: PathBuf, output_path: PathBuf) {
+        todo!()
+    }
 
+    fn upload_directory(&self, input_path: PathBuf, output_path: PathBuf) {
+        todo!()
+    }
 
+    fn download_file(&self, input_path: PathBuf, output_path: PathBuf) {
+        todo!()
+    }
 
+    fn download_directory(&self, input_path: PathBuf, output_path: PathBuf) {
+        todo!()
+    }
+
+    fn check_hash_sum(&self, path: PathBuf) -> Result<String, SyncError> {
+        todo!()
+    }
+
+    async fn get_list_files(&self, path: PathBuf) -> Result<Vec<String>, SyncError> {
+        let result = self.hub.files().list().doit().await;
+        let _ = match result {
+            Err(e) => Err(SyncError::ErrListFile(e.to_string())),
+            Ok(res) => Ok(vec!["Test".to_string()]),
+        };
+        Ok(vec!["Test".to_string()])
+    }
+
+    fn get_file(&self, path: PathBuf) -> Result<String, SyncError> {
+        todo!()
+    }
+}
 

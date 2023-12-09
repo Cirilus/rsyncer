@@ -1,3 +1,4 @@
 pub mod google;
 pub mod file;
-mod config;
+pub mod config;
+mod types;

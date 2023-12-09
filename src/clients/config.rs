@@ -1,8 +1,9 @@
-use google_drive3::client::serde_with::serde::Deserialize;
 use std::path::PathBuf;
 use std::time::Duration;
+use google_drive3::client::serde_with::SerializeDisplay;
+use serde::Deserialize;
 
-#[derive(Deserialize, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, SerializeDisplay)]
 pub struct Config {
     pub debug: Option<bool>,
 
