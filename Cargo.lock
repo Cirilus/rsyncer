@@ -3,22 +3,6 @@
 version = 3
 
 [[package]]
-name = "GoogleSynchronizer"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "failure",
- "google-drive3",
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "tokio",
- "toml",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,6 +431,22 @@ dependencies = [
  "tokio",
  "tower-service",
  "url 1.7.2",
+]
+
+[[package]]
+name = "google_synchronizer"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "failure",
+ "google-drive3",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "toml",
 ]
 
 [[package]]

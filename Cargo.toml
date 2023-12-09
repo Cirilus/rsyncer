@@ -1,5 +1,5 @@
 [package]
-name = "GoogleSynchronizer"
+name = "google_synchronizer"
 version = "0.1.0"
 edition = "2021"
 
