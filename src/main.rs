@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
-use crate::clients::types::Syncer;
+use crate::clients::types::{Syncer};
 
 mod clients;
 
@@ -17,9 +17,9 @@ async fn main() {
 
     path.push("");
 
-    let text = driver_client.get_list_files(path).await.expect("Init driver client");
+    let text = driver_client.get_list_files(&path).await.unwrap();
 
-    for t in text{
-        print!("{}", t);
-    }
+    let file = driver_client.get_file(&text[0].id).await;
+
+    print!("{:?}", file);
 }
